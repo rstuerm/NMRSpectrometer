@@ -92,8 +92,6 @@ step_y1 = 25
 step_x = 5
 
 
-
-
 ax.set_xlim(min_f/1e3-step_x/4, max_f/1e3+step_x/4)
 
 ax.set_ylim(-112.5-step_y1/4, -37.5+step_y1/4)

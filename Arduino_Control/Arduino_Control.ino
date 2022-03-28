@@ -1,12 +1,11 @@
-#define TRANSMIT_GENERATE 12
 #define TRANSMIT_PIN 11
 #define RECEIVE_PIN 10
 #define OSCILLOSCOPE_TRIGGER 9
-#define TRANSMIT_TRIGGER 8
+#define TRANSMIT_TRIGGER 12
 
 int serial_control = 1;
 
-double expulse_freq_arr[] = {55e3};
+double expulse_freq_arr[] = {290};
 double expulse_duration_arr[] = {200e-6};
 
 const int num_freq_arr_elements = sizeof(expulse_freq_arr)/sizeof(expulse_freq_arr[0]);
@@ -20,9 +19,6 @@ void setup()
 
 	pinMode(LED_BUILTIN, OUTPUT);
 	digitalWrite(LED_BUILTIN, LOW);
-
-	pinMode(TRANSMIT_GENERATE, OUTPUT);
-	digitalWrite(TRANSMIT_GENERATE, LOW);
 
 	pinMode(TRANSMIT_PIN, OUTPUT);
 	digitalWrite(TRANSMIT_PIN, LOW);
@@ -63,7 +59,7 @@ void loop()
 
 				// for (int h = 0; h < 10; h++)
 				// {
-				Pulse(int(expulse_duration_arr[j]/1e-6), 500);
+				Pulse(expulse_freq_arr[i], int(expulse_duration_arr[j]/1e-6), 500);
 
 					// for (int i = 0; i < 85; i++)
 					// {
@@ -89,20 +85,31 @@ void loop()
 
 }
 
-void Pulse(int length, int sample_time)
+void Pulse(int freq, int length, int sample_time)
 {
+
+
+	// Initialize PWM timer
+	TCCR1A &= ~7;
+	TCCR1B &= ~7;
 
 	// Enable transmit relay and wait for relay to stabilize
 	digitalWrite(TRANSMIT_PIN, HIGH);
 	delayMicroseconds(200);
 
-	// Trigger transmit pulse
-	digitalWrite(TRANSMIT_TRIGGER, HIGH);
+	// Generate transmit pulse
+
+	TCCR1A = (1 << COM1B1) | (1 << COM1B0) | (1 << WGM11);
+	TCCR1B = (1 << WGM13) | (1 << WGM12);
+	ICR1 = freq;
+	OCR1B = freq/2; 
+	TCCR1B |= (1 << CS10);
+
 	delayMicroseconds(length); 
+	digitalWrite(TRANSMIT_TRIGGER, LOW);
 
 	// Wait for RF coil voltage to ringdown before turning of transmit relay
 	delayMicroseconds(100);
-	digitalWrite(TRANSMIT_TRIGGER, LOW);
 	digitalWrite(TRANSMIT_PIN, LOW);
 
 	// Small delay before enabling receive relay

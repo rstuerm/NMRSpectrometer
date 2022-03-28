@@ -104,7 +104,7 @@ int main(){
             std::cout << "Beginning measurement: " << " i=" << i << " j=" << j << std::endl;
 
             expulse_freq     = 16e6/(double(expulse_freq_arr[i])+1);
-            expulse_duration = 1/expulse_freq;
+            expulse_duration = double(1/expulse_freq);
 
             std::cout << "Excitation pulse frequency: " << expulse_freq << std::endl;
             std::cout << "Excitation pulse duration: " << expulse_duration << std::endl;
@@ -116,7 +116,7 @@ int main(){
             file_name = file_name_location + file_name_base + to_string(i) + "_" + to_string(j) + file_extension;
 
             // take NMR spectrum measurement
-            take_NMR_measurement(this_device, data_buffer, time_data, total_num_samples, expulse_freq, expulse_amp, expulse_duration, sample_freq, sample_time, sample_amp, file_name);
+            take_NMR_measurement(this_device, data_buffer, time_data, total_num_samples, expulse_freq, expulse_amp, double(10*expulse_duration), sample_freq, sample_time, sample_amp, file_name);
 
             sleep(2);
         }
