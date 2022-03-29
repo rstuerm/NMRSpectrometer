@@ -63,6 +63,7 @@ void Wavegen::generate(HDWF device_handle, int channel, FUNC function, double of
     if (channel == 0){
         // set trigger source to external trigger 1
         FDwfAnalogOutTriggerSourceSet(device_handle, channel, trigsrcExternal1);
+		FDwfAnalogOutRepeatTriggerSet(device_handle, channel, true);
     }
     
     // start

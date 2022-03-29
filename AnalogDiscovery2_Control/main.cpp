@@ -11,6 +11,9 @@
 #include <stdlib.h>
 #include <string>
 
+// Includes consistent parameters as Arduino file
+#include "../Arduino_Control/src/Parameters.h"
+
 #ifdef WIN32
 #include "../../inc/dwf.h"
 #elif __APPLE__
@@ -39,30 +42,14 @@ void clear_buffer(double buffer[], int num_elements);
 
 int main(){
 
-    // set up measurement parameters
-    // excitation pulse parameters
-    int expulse_freq_arr[] = {290}; // f = 16e6/(freq_no+1)
-    int expulse_duration_arr[] = {30}; // number of cycles
-
-	const int num_freq_arr_elements = sizeof(expulse_freq_arr)/sizeof(expulse_freq_arr[0]);
-	const int num_duration_arr_elements = sizeof(expulse_duration_arr)/sizeof(expulse_duration_arr[0]);
-
-    double expulse_freq;
-    double expulse_amp = 1.2;
-    double expulse_duration;
-	
-
-    // sampling parameters
-    double sample_freq = 500e3;
-    double sample_time = 500e-3;
-    double sample_amp  = 2;
-
     // output file name parameters
 	string file_name_location = "../Processing/";  // file location, not sure about windows compatibility
     string file_name_base = "test_data_";          // file prefix
     string file_extension = ".csv";                // file type of output file
     string file_name;                              // full output file name
 
+	double expulse_duration;
+	double expulse_freq;
 
     /* ----------------------------------------------------- */
 
@@ -97,28 +84,32 @@ int main(){
 
 
     // sweep through excitation pulse frequencies
-    for (int i = 0; i < num_freq_arr_elements; i++){
+    for (int i = 0; i < NUM_FREQ_ARRAY_ELEMENTS; i++){
         // sweep through excitation pulse durations
-        for (int j = 0; j < num_duration_arr_elements; j++){
+        for (int j = 0; j < NUM_DURATION_ARRAY_ELEMENTS; j++){
+			// sweep through averages of the same pulse parameters
+			for (int k = 0; k < NUM_AVERAGES; k++){
 
-            std::cout << "Beginning measurement: " << " i=" << i << " j=" << j << std::endl;
+				std::cout << "Beginning measurement: " << " i=" << i << " j=" << j << std::endl;
 
-            expulse_freq     = 16e6/(double(expulse_freq_arr[i])+1);
-            expulse_duration = double(1/expulse_freq);
+				expulse_freq     = 16e6/(double(expulse_freq_arr[i])+1);
+				expulse_duration = double(1/expulse_freq)*0.99;
 
-            std::cout << "Excitation pulse frequency: " << expulse_freq << std::endl;
-            std::cout << "Excitation pulse duration: " << expulse_duration << std::endl;
+				std::cout << "Excitation pulse frequency: " << expulse_freq << std::endl;
+				std::cout << "Excitation pulse duration: " << expulse_duration << std::endl;
 
-            // set all values in data buffer to 0
-            clear_buffer(data_buffer, total_num_samples + EXTRA_ELEMENTS);
+				// set all values in data buffer to 0
+				clear_buffer(data_buffer, total_num_samples + EXTRA_ELEMENTS);
 
-            // create full name of output file
-            file_name = file_name_location + file_name_base + to_string(i) + "_" + to_string(j) + file_extension;
+				// create full name of output file
+				file_name = file_name_location + file_name_base + to_string(i) + "_" + to_string(j) + "_" + to_string(k) + file_extension;
 
-            // take NMR spectrum measurement
-            take_NMR_measurement(this_device, data_buffer, time_data, total_num_samples, expulse_freq, expulse_amp, double(10*expulse_duration), sample_freq, sample_time, sample_amp, file_name);
+				// take NMR spectrum measurement
+				take_NMR_measurement(this_device, data_buffer, time_data, total_num_samples, expulse_freq, expulse_amp, expulse_duration, sample_freq, sample_time, sample_amp, file_name);
 
-            sleep(2);
+				sleep(2);
+
+			}
         }
     }
 
@@ -163,7 +154,7 @@ int take_NMR_measurement(device_data this_device, double data_buffer[], double t
     std::cout << "Beginning Measurement..." << std::endl;
 
     // generate excitation pulse
-    wavegen.generate(this_device.handle, 1, wavegen.function.sine, 0, expulse_freq, expulse_amp, 50, 0, expulse_duration, 1);
+    wavegen.generate(this_device.handle, 1, wavegen.function.sine, 0, expulse_freq, expulse_amp, 50, 0, expulse_duration, 0);
     std::cout << "Excitation pulse armed..." << std::endl;
 
 
@@ -171,7 +162,6 @@ int take_NMR_measurement(device_data this_device, double data_buffer[], double t
     acquire_data.initialize(this_device.handle, 2, sample_freq, sample_time, sample_amp);
     std::cout << "Oscilloscope armed..." << std::endl;
     acquire_data.start_recording(this_device.handle, data_buffer, 2, sample_freq, sample_time);
-
 
 
     // save recorded data into .csv
@@ -190,7 +180,6 @@ int take_NMR_measurement(device_data this_device, double data_buffer[], double t
 
     // reset oscilloscope
     //acquire_data.close(this_device.handle);
-
 
     return 0;
 }
