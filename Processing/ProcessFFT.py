@@ -18,6 +18,8 @@ NUM_DURATION_ARRAY_ELEMENTS = 2
 NUM_AVERAGES = 2
 NUM_ECHOS = 10
 
+sample_time = 500e-3;
+
 for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 
 	for j in list(range(NUM_DURATION_ARRAY_ELEMENTS)):
@@ -42,7 +44,10 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		# spikes. Ideally this could be based on the relay delay time, the pulse
 		# duration, and the echo sample spacing.
 		for l in list(range(NUM_ECHOS + 1)):
-			signal_ave[(t > 33.2e-3*l) & (t < 33.5e-3*l + 4e-3)] = 0
+			signal_ave[(t > 33.2e-3*l) & (t < 33.2e-3*l + 4e-3)] = np.average(signal_ave)
+		
+		# alternative method to remove noise by removing large value
+		# signal_ave[np.abs(signal_ave - np.average(signal_ave)) > 0.7*np.average(np.abs(signal_ave))] = np.average(signal_ave)
 
 		signal_trimmed = (signal_ave)[(t <= START_TIME + CAPTURE_DURATION) & (t > START_TIME)]
 		reference_trimmed = (signal_ave)[(t <= REFERENCE_START_TIME + CAPTURE_DURATION) & (t > REFERENCE_START_TIME)]
@@ -147,8 +152,7 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		step_y1 = 25
 		step_x = 5
 
-
-		ax.set_xlim(0, 0.5)
+		ax.set_xlim(0, sample_time)
 
 		# ax.set_ylim(-112.5-step_y1/4, -37.5+step_y1/4)
 
