@@ -8,8 +8,6 @@
 
 int serial_control = 0;
 
-const long MAX_ARDUINO_DELAY_TIME = 16383;
-
 
 void setup() 
 {
@@ -32,7 +30,7 @@ void setup()
 	digitalWrite(TRANSMIT_TRIGGER, LOW);	
 
 	delay(1000);
-
+	
 }
 
 void loop() 
@@ -46,7 +44,7 @@ void loop()
 	// Send integer 1 to device over serial to start sequence
 	if (serial_control == 1)
 	{
-
+		// delay(TRIAL_DELAY);
 		for (int i = 0; i < NUM_FREQ_ARRAY_ELEMENTS; i++)
 		{
 			for (int j = 0; j < NUM_DURATION_ARRAY_ELEMENTS; j++)
@@ -60,16 +58,12 @@ void loop()
 					Serial.print(" ");
 					Serial.println(k);
 
-					Pulse(expulse_freq_arr[i], expulse_duration_arr[j], echo_sample_time);
-
-					digitalWrite(OSCILLOSCOPE_TRIGGER, HIGH);
+					Pulse(expulse_freq_arr[i], expulse_duration_arr[j], echo_sample_time, 0);
 
 					for (int l = 0; l < NUM_ECHOS; l++)
 					{
-						Pulse(expulse_freq_arr[i], expulse_duration_arr[j]*2, echo_sample_time*2);
+						Pulse(expulse_freq_arr[i], expulse_duration_arr[j]*2, echo_sample_time*2, 1);
 					}
-
-					digitalWrite(OSCILLOSCOPE_TRIGGER, LOW);
 
 					delay(TRIAL_DELAY);
 
@@ -86,7 +80,7 @@ void loop()
 
 }
 
-void Pulse(int freq, int length, long echo_sample_time)
+void Pulse(int freq, int length, long echo_sample_time, int sample_flag)
 {
 
 	// Enable transmit relay and wait for relay to stabilize
@@ -110,15 +104,35 @@ void Pulse(int freq, int length, long echo_sample_time)
 	// Small delay before enabling receive relay
 	delayMicroseconds(RELAY_DELAY); 
 	digitalWrite(RECEIVE_PIN, HIGH);
+	delayMicroseconds(RELAY_DELAY*2); 
 
-	// Wait sample time before turning of receive pin (accounts for sample time
-	// longer than maximum possible delay)
-	for(int i = 0; i < echo_sample_time / MAX_ARDUINO_DELAY_TIME; i++)
+	// Only trigger sample if flag set, allows first 90 degree pulse to not be sampled
+	if (sample_flag)
+	{
+		arbDelayMicroseconds(echo_sample_time/2);
+		digitalWrite(OSCILLOSCOPE_TRIGGER, HIGH);
+		arbDelayMicroseconds(echo_sample_time/2);
+		digitalWrite(OSCILLOSCOPE_TRIGGER, LOW);
+	}
+	else
+	{
+		arbDelayMicroseconds(echo_sample_time);
+	}
+
+	digitalWrite(RECEIVE_PIN, LOW);
+
+}
+
+
+// Delay function which allows longer than maximum possible delay
+void arbDelayMicroseconds(long delay_time)
+{
+	const long MAX_ARDUINO_DELAY_TIME = 16383;
+
+	for(int i = 0; i < delay_time / MAX_ARDUINO_DELAY_TIME; i++)
 	{
 		delayMicroseconds(MAX_ARDUINO_DELAY_TIME);
 	}
-	delayMicroseconds(echo_sample_time % MAX_ARDUINO_DELAY_TIME);
-	
-	digitalWrite(RECEIVE_PIN, LOW);
+	delayMicroseconds(delay_time % MAX_ARDUINO_DELAY_TIME);
 
 }

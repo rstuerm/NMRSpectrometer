@@ -11,6 +11,11 @@
 #include "pattern.cpp"
 #include "static.cpp"
 #include "acquire_data.cpp"
+#include "scope_multiple_triggers.cpp"
+
+// Includes consistent parameters as Arduino file
+#include "../../Arduino_Control/src/Parameters.h"
+
 
 /*
 #include "protocol/uart.cpp"

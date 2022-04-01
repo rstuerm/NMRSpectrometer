@@ -7,18 +7,16 @@ import os
 
 path = os.path.dirname(os.path.abspath(__file__))
 
-CAPTURE_DURATION = 0.1
-START_TIME = 0
-REFERENCE_START_TIME = 0.1
+CAPTURE_DURATION = 1
+START_TIME = 0.2
+REFERENCE_START_TIME = 1
 
-NUM_FREQ_ARRAY_ELEMENTS = 2
-NUM_DURATION_ARRAY_ELEMENTS = 2
+NUM_FREQ_ARRAY_ELEMENTS = 1
+NUM_DURATION_ARRAY_ELEMENTS = 1
 # Note that setting the averages to greater than 1 removes the peaks from the
 # first trial (and only the first trial). Not sure why.
-NUM_AVERAGES = 2
+NUM_AVERAGES = 10
 NUM_ECHOS = 10
-
-sample_time = 500e-3;
 
 for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 
@@ -37,22 +35,22 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 
 			signal_ave += signal
 
-		signal_ave = signal_ave/(NUM_AVERAGES)
+		signal_ave = signal_ave/NUM_AVERAGES
 
 		# Empirical fit to see what range to remove. (Note can set replacement
 		# value as non zero (~0.3) to help align portion being removed with
 		# spikes. Ideally this could be based on the relay delay time, the pulse
 		# duration, and the echo sample spacing.
-		for l in list(range(NUM_ECHOS + 1)):
-			signal_ave[(t > 33.2e-3*l) & (t < 33.2e-3*l + 4e-3)] = np.average(signal_ave)
+		# for l in list(range(NUM_ECHOS + 1)):
+		# 	signal_ave[(t > 33.2e-3*l) & (t < 33.2e-3*l + 4e-3)] = np.average(signal_ave)
 		
 		# alternative method to remove noise by removing large value
-		# signal_ave[np.abs(signal_ave - np.average(signal_ave)) > 0.7*np.average(np.abs(signal_ave))] = np.average(signal_ave)
+		# signal_ave[np.abs(signal_ave - np.average(signal_ave)) > 2*np.average(np.abs(signal_ave))] = np.average(signal_ave)
 
 		signal_trimmed = (signal_ave)[(t <= START_TIME + CAPTURE_DURATION) & (t > START_TIME)]
 		reference_trimmed = (signal_ave)[(t <= REFERENCE_START_TIME + CAPTURE_DURATION) & (t > REFERENCE_START_TIME)]
 
-		f = np.fft.fftfreq(int(sample_rate*CAPTURE_DURATION),1/sample_rate) 
+		f = np.fft.fftfreq(len(signal_trimmed),1/sample_rate) 
 
 		signal_amplitude = 2/(sample_rate*CAPTURE_DURATION)*abs(np.fft.fft(signal_trimmed))
 		reference_amplitude = 2/(sample_rate*CAPTURE_DURATION)*abs(np.fft.fft(reference_trimmed))
@@ -72,7 +70,7 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		print(noise_ave)
 		print(signal_peak)
 		print((f_trimmed[signal_dBV >= signal_peak])/1e3)
-		# print(signal_peak-noise_ave)
+		print(signal_peak-noise_ave)
 		print("\n")
 
 		plt.close('all')
@@ -102,9 +100,9 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		step_x = 5
 
 
-		ax.set_xlim(min_f/1e3-step_x/4, max_f/1e3+step_x/4)
+		# ax.set_xlim(min_f/1e3-step_x/4, max_f/1e3+step_x/4)
 
-		ax.set_ylim(-112.5-step_y1/4, -37.5+step_y1/4)
+		# ax.set_ylim(-112.5-step_y1/4, -37.5+step_y1/4)
 
 		ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(step_x))
 		ax.xaxis.set_minor_locator(mpl.ticker.MultipleLocator(step_x/2))
@@ -152,7 +150,7 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		step_y1 = 25
 		step_x = 5
 
-		ax.set_xlim(0, sample_time)
+		ax.set_xlim(0, 2)
 
 		# ax.set_ylim(-112.5-step_y1/4, -37.5+step_y1/4)
 
