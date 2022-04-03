@@ -33,7 +33,7 @@
 #define EXTRA_ELEMENTS 1000
 
 // function prototypes
-int take_NMR_measurement(device_data this_device, double data_buffer[], double time_data[], int total_num_samples, double expulse_freq, double expulse_duration, string file_name);
+int take_NMR_measurement(device_data this_device, double data_buffer[], double time_data[], int total_num_samples, double expulse_freq, double expulse_duration, string file_name, int enable_timeout);
 void clear_buffer(double buffer[], int num_elements);
 
 
@@ -81,6 +81,7 @@ int main(){
 
     // -------- Start main measurement loop -------- //
 
+    int enable_timeout = 0;
 
     // sweep through excitation pulse frequencies
     for (int i = 0; i < NUM_FREQ_ARRAY_ELEMENTS; i++){
@@ -89,7 +90,7 @@ int main(){
 			// sweep through averages of the same pulse parameters
 			for (int k = 0; k < NUM_AVERAGES; k++){
 
-				std::cout << "Beginning measurement: " << " i=" << i << " j=" << j << std::endl;
+				std::cout << "Beginning measurement: " << " i=" << i << " j=" << j << " k=" << k << std::endl;
 
 				expulse_freq     = ARDUINO_CLK_FREQ / (double(expulse_freq_arr[i]) + 1);  // calculate excitation pulse frequency
                 // note: expulse_freq is an integer division of the Arduino base clock frequency (16 MHz)
@@ -106,8 +107,15 @@ int main(){
 				// create full name of output file
 				file_name = file_name_location + file_name_base + to_string(i) + "_" + to_string(j) + "_" + to_string(k) + file_extension;
 
+				if (i == 0 && j == 0 && k == 0){
+					enable_timeout = 0;
+				}
+				else {
+					enable_timeout = 1;
+				}
+
 				// take NMR spectrum measurement
-				take_NMR_measurement(this_device, data_buffer, time_data, total_num_samples, expulse_freq, expulse_duration, file_name);
+				take_NMR_measurement(this_device, data_buffer, time_data, total_num_samples, expulse_freq, expulse_duration, file_name, enable_timeout);
 
                 // wait a short duration between each measurement
 				sleep(2);
@@ -137,8 +145,7 @@ int main(){
 }
 
 
-
-int take_NMR_measurement(device_data this_device, double data_buffer[], double time_data[], int total_num_samples, double expulse_freq, double expulse_duration, string file_name) {
+int take_NMR_measurement(device_data this_device, double data_buffer[], double time_data[], int total_num_samples, double expulse_freq, double expulse_duration, string file_name, int enable_timeout) {
 
     std::cout << "Beginning Measurement..." << std::endl;
 
@@ -152,7 +159,7 @@ int take_NMR_measurement(device_data this_device, double data_buffer[], double t
     //acquire_data.start_recording(this_device.handle, data_buffer, 2, sample_freq, sample_time);
     scope_multiple_triggers.initialize(this_device.handle, 2, sample_freq, AD2_BUFFER_SIZE, sample_amp);
     std::cout << "Oscilloscope armed..." << std::endl;
-    scope_multiple_triggers.start_measurement(this_device.handle, 2, NUM_ECHOS, AD2_BUFFER_SIZE, data_buffer);
+    scope_multiple_triggers.start_measurement(this_device.handle, 2, NUM_ECHOS, AD2_BUFFER_SIZE, data_buffer, enable_timeout, TRIAL_DELAY/1e3*1.5);
 
 
     std::cout << "data_buffer[0] " << data_buffer[0] << std::endl;

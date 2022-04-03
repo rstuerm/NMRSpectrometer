@@ -8,7 +8,6 @@
 
 int serial_control = 0;
 
-
 void setup() 
 {
 
@@ -58,11 +57,11 @@ void loop()
 					Serial.print(" ");
 					Serial.println(k);
 
-					Pulse(expulse_freq_arr[i], expulse_duration_arr[j], echo_sample_time, 0);
+					Pulse(expulse_freq_arr[i], expulse_duration_arr[j], echo_delay_time, 0);
 
-					for (int l = 0; l < NUM_ECHOS; l++)
+					for (int l = 0; l < NUM_ECHOS + 5; l++)
 					{
-						Pulse(expulse_freq_arr[i], expulse_duration_arr[j]*2, echo_sample_time*2, 1);
+						Pulse(expulse_freq_arr[i], expulse_duration_arr[j]*2, echo_delay_time*2, 1);
 					}
 
 					delay(TRIAL_DELAY);
@@ -97,7 +96,7 @@ void Pulse(int freq, int length, long echo_sample_time, int sample_flag)
 	delayMicroseconds(length); 
 	digitalWrite(TRANSMIT_TRIGGER, LOW);
 
-	// Wait for RF coil voltage to ringdown before turning of transmit relay
+	/* Wait for RF coil voltage to ringdown before turning of transmit relay */
 	delayMicroseconds(RELAY_DELAY);
 	digitalWrite(TRANSMIT_PIN, LOW);
 
@@ -106,13 +105,20 @@ void Pulse(int freq, int length, long echo_sample_time, int sample_flag)
 	digitalWrite(RECEIVE_PIN, HIGH);
 	delayMicroseconds(RELAY_DELAY*2); 
 
-	// Only trigger sample if flag set, allows first 90 degree pulse to not be sampled
+	/* Only trigger sample if flag set, allows first 90 degree pulse to not be
+	sampled */
 	if (sample_flag)
 	{
+		/* Start sampling at half of echo sample time delay since sampling
+		trigger is center point of received data */
 		arbDelayMicroseconds(echo_sample_time/2);
 		digitalWrite(OSCILLOSCOPE_TRIGGER, HIGH);
 		arbDelayMicroseconds(echo_sample_time/2);
 		digitalWrite(OSCILLOSCOPE_TRIGGER, LOW);
+
+		/* Account for double the relay delay to ensure symmetric 180 degree
+		pulse compared to 90 degree pulse */
+		delayMicroseconds(RELAY_DELAY*3);
 	}
 	else
 	{

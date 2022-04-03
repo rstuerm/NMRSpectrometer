@@ -26,16 +26,27 @@ void scope_multiple_triggers::initialize(HDWF device_handle, int channel, double
 
     FDwfAnalogInTriggerAutoTimeoutSet(device_handle, 0);         // disable auto trigger
     FDwfAnalogInTriggerSourceSet(device_handle, trigsrcExternal2);  // set external trigger pin 2 as trigger source
+
 	// FDwfAnalogInTriggerLevelSet(device_handle, 8.0);				// Set trigger level higher to avoid triggering on transmit pulse noise
 	// FDwfAnalogInTriggerTypeSet(device_handle, trigtypePulse);
 	// FDwfAnalogInTriggerLengthConditionSet(device_handle, triglenTimeout);
 	// FDwfAnalogInTriggerLengthSet(device_handle, 4e-3);
 	// FDwfAnalogInTriggerPositionSet(device_handle, double(buffer_size)/2.0/sampling_frequency);
 
+	double voltage_min;
+	double voltage_max;
+	double voltage_steps;
+	FDwfAnalogInChannelRangeInfo(device_handle, &voltage_min, &voltage_max, &voltage_steps);
+	std::cout << "Min voltage: " << voltage_min << std::endl;
+	std::cout << "Max voltage: " << voltage_max << std::endl;
+	std::cout << "Voltage steps: " << voltage_steps << std::endl;
+
+	FDwfAnalogInChannelRangeGet(device_handle, channel, &voltage_max);
+	std::cout << "Voltage range: " << voltage_max << std::endl;
+
     int buffer_min;
     int buffer_max;
     FDwfAnalogInBufferSizeInfo(device_handle, &buffer_min, &buffer_max);
-
     std::cout << "Maximum buffer size: " << buffer_max << std::endl;
     std::cout << "Minimum buffer size: " << buffer_min << std::endl;
 
@@ -47,9 +58,12 @@ void scope_multiple_triggers::initialize(HDWF device_handle, int channel, double
 }
 
 
-void scope_multiple_triggers::start_measurement(HDWF device_handle, int channel, int num_triggers, int buffer_size, double data_buffer[]) {
+void scope_multiple_triggers::start_measurement(HDWF device_handle, int channel, int num_triggers, int buffer_size, double data_buffer[], int enable_timeout, double timeout_time) {
 
     STS device_status;
+	int sleep_time = 100;
+	int timeout_max = timeout_time / (sleep_time * 1e-6);
+	int timeout_counter = 0;
 
     // account for zero indexing of channels
     channel--;
@@ -63,14 +77,29 @@ void scope_multiple_triggers::start_measurement(HDWF device_handle, int channel,
     // loop for each expected trigger pulse from Arduino
     for (int i = 0; i < num_triggers; i++){
 
+		timeout_counter = 0;
+
         // poll AD2 until acquisition is complete
         while(true){
             FDwfAnalogInStatus(device_handle, true, &device_status);
             if(device_status == DwfStateDone){
                 break;
             }
-            usleep(100);
+            usleep(sleep_time);
+
+			if (enable_timeout == 1){
+                timeout_counter++;
+			}
+
+			if (timeout_counter >= timeout_max){
+				std::cout << "Error: Device Timeout" << std::endl;
+				break;
+			}
         }
+
+		if (timeout_counter >= timeout_max){
+			break;
+		}
 
         // transfer data from AD2 buffer to array in PC
         FDwfAnalogInStatusData(device_handle, channel, &data_buffer[i*buffer_size], buffer_size);

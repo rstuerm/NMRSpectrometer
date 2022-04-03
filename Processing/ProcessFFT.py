@@ -8,7 +8,7 @@ import os
 path = os.path.dirname(os.path.abspath(__file__))
 
 CAPTURE_DURATION = 1
-START_TIME = 0.2
+START_TIME = 0
 REFERENCE_START_TIME = 1
 
 NUM_FREQ_ARRAY_ELEMENTS = 1
@@ -16,14 +16,14 @@ NUM_DURATION_ARRAY_ELEMENTS = 1
 # Note that setting the averages to greater than 1 removes the peaks from the
 # first trial (and only the first trial). Not sure why.
 NUM_AVERAGES = 10
-NUM_ECHOS = 10
+# NUM_ECHOS = 80
 
 for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 
 	for j in list(range(NUM_DURATION_ARRAY_ELEMENTS)):
 
-		signal_ave = 0
-		reference_ave = 0
+		signal_dBV_ave = 0
+		reference_dBV_ave = 0
 
 		for k in list(range(NUM_AVERAGES)):
 
@@ -33,9 +33,26 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 			sample_rate = 1/(t[1]-t[0])
 			signal = data[1]
 
-			signal_ave += signal
+			if np.all(signal == 0):
+				NUM_AVERAGES = NUM_AVERAGES - 1
+				continue
 
-		signal_ave = signal_ave/NUM_AVERAGES
+			signal_trimmed = (signal)[(t <= START_TIME + CAPTURE_DURATION) & (t > START_TIME)]
+			reference_trimmed = (signal)[(t <= REFERENCE_START_TIME + CAPTURE_DURATION) & (t > REFERENCE_START_TIME)]
+
+			f = np.fft.fftfreq(len(signal_trimmed),1/sample_rate) 
+
+			signal_amplitude = 2/(sample_rate*CAPTURE_DURATION)*abs(np.fft.fft(signal_trimmed))
+			reference_amplitude = 2/(sample_rate*CAPTURE_DURATION)*abs(np.fft.fft(reference_trimmed))
+
+			signal_dBV = 20*np.log10(signal_amplitude/1)
+			reference_dBV = 20*np.log10(reference_amplitude/1)
+
+			signal_dBV_ave += signal_dBV
+			reference_dBV_ave += reference_dBV
+
+		signal_dBV_ave = signal_dBV_ave/NUM_AVERAGES
+		reference_dBV_ave = reference_dBV_ave/NUM_AVERAGES
 
 		# Empirical fit to see what range to remove. (Note can set replacement
 		# value as non zero (~0.3) to help align portion being removed with
@@ -46,17 +63,6 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		
 		# alternative method to remove noise by removing large value
 		# signal_ave[np.abs(signal_ave - np.average(signal_ave)) > 2*np.average(np.abs(signal_ave))] = np.average(signal_ave)
-
-		signal_trimmed = (signal_ave)[(t <= START_TIME + CAPTURE_DURATION) & (t > START_TIME)]
-		reference_trimmed = (signal_ave)[(t <= REFERENCE_START_TIME + CAPTURE_DURATION) & (t > REFERENCE_START_TIME)]
-
-		f = np.fft.fftfreq(len(signal_trimmed),1/sample_rate) 
-
-		signal_amplitude = 2/(sample_rate*CAPTURE_DURATION)*abs(np.fft.fft(signal_trimmed))
-		reference_amplitude = 2/(sample_rate*CAPTURE_DURATION)*abs(np.fft.fft(reference_trimmed))
-
-		signal_dBV = 20*np.log10(signal_amplitude/1)
-		reference_dBV = 20*np.log10(reference_amplitude/1)
 
 		min_f = 50e3
 		max_f = 60e3
@@ -117,8 +123,8 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		mpl.rcParams['axes.unicode_minus'] = False # uses dash instead of minus for axis numbers
 
 
-		ax.plot(f_trimmed/1e3, signal_dBV, linewidth=1, color='r', linestyle='solid',markersize='2', label='Input')
-		ax.plot(f_trimmed/1e3, reference_dBV, linewidth=1, color='k', linestyle='solid',markersize='2', label='Input')
+		ax.plot(f_trimmed/1e3, signal_dBV, linewidth=0.5, color='r', linestyle='solid',markersize='2', label='Input')
+		ax.plot(f_trimmed/1e3, reference_dBV, linewidth=0.5, color='k', linestyle='solid',markersize='2', label='Input')
 
 		plt.savefig(path + '/FFT_' + str(i) + '_' + str(j)  + '.pdf')
 
@@ -150,7 +156,7 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		step_y1 = 25
 		step_x = 5
 
-		ax.set_xlim(0, 2)
+		# ax.set_xlim(0, 600)
 
 		# ax.set_ylim(-112.5-step_y1/4, -37.5+step_y1/4)
 
@@ -161,12 +167,12 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		# ax.yaxis.set_minor_locator(mpl.ticker.MultipleLocator(step_y1/2))
 
 
-		ax.set_xlabel('$t \\quad (\\rm{s})$', labelpad=1)
-		ax.set_ylabel('$\\rm{Amplitude} \\quad (\\rm{V})$', labelpad=4)
+		ax.set_xlabel('$t \\quad (\\mu\\rm{s})$', labelpad=1)
+		ax.set_ylabel('$\\rm{Amplitude} \\quad (\\rm{mV})$', labelpad=4)
 
 		mpl.rcParams['axes.unicode_minus'] = False # uses dash instead of minus for axis numbers
 
-		ax.plot(t, signal_ave, linewidth=1, color='k', linestyle='solid',markersize='2', label='Input')
+		ax.plot(t/1e-6, signal/1e-3, linewidth=1, color='k', linestyle='solid',markersize='2', label='Input')
 
 		plt.savefig(path + '/Time_' + str(i) + '_' + str(j)  + '.pdf')
 

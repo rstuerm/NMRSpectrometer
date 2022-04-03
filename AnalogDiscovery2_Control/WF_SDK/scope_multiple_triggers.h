@@ -31,7 +31,7 @@ private:
 public:
     Trigger_Source trigger_source;
     void initialize(HDWF device_handle, int channel, double sampling_frequency, int buffer_size, double amplitude_range);
-    void start_measurement(HDWF device_handle, int channel, int num_triggers, int buffer_size, double data_buffer[]);
+    void start_measurement(HDWF device_handle, int channel, int num_triggers, int buffer_size, double data_buffer[], int enable_timeout, double timeout_time);
     void save_data(HDWF device_handle, double buffer_data[], double time_data[], int total_num_samples, string file_name);
     void close(HDWF device_handle);
 } scope_multiple_triggers;
