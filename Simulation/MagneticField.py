@@ -11,6 +11,21 @@ import os
 
 path = os.path.dirname(os.path.abspath(__file__))
 
+def truncate_low(num, n):
+	x = (num * (10**n))
+	integer = x.astype(int)/(10**n)
+	difference = num - integer
+	return difference.astype(float)
+
+def truncate_high(num, n):
+	x = (num * (10**n))
+	integer = x.astype(int)/(10**n)
+	return integer.astype(float)
+
+test = np.array([1.23456789,9.87654321])
+print(truncate_high(test, 5))
+print(truncate_low(test, 5))
+
 mu = 4*np.pi*1e-7 # permeability of free space in N/A^2
 gamma = 267.522e6 # gyromagnetic ratio of hydrogen in rad/s/T
 T2 = 2 # water spin relaxation time estimate in s
@@ -296,7 +311,7 @@ print("\n")
 # %%
 
 TRANSMIT_SAMPLE_RATE = 10e6 # sample frequency
-f_transmit = 65e3 # signal frequency
+f_transmit = 55e3 # signal frequency
 
 TRANSMIT_WINDOW = 500e-3
 
@@ -484,10 +499,11 @@ plt.savefig(path + '/TransmitPulse_FFT.pdf')
 
 # %%
 
-RECEIVE_DURATION = 5e-3
+echo_sample_time = 4e-3
+echo_delay_time = 6e-3
 RECEIVE_SAMPLE_RATE = 200e3
-N_RECEIVE = int(RECEIVE_SAMPLE_RATE*RECEIVE_DURATION)
-t = np.linspace(0,RECEIVE_DURATION,N_RECEIVE)
+N_RECEIVE = int(RECEIVE_SAMPLE_RATE*echo_sample_time)
+t = np.linspace(0,echo_sample_time,N_RECEIVE)
 
 
 def argument(x,y,z):
@@ -520,33 +536,39 @@ print(V_max*gain/ADC_step, "ADC Steps")
 print("\n")
 
 
-noise_amplitude = 10e-3/gain
+noise_amplitude = 20e-3/gain # based on measured -83 dBV average for 1s worth of samples (no averaging)
 f_res = 140e3
 
-AVERAGES = 10
-REPETITIONS = 80
+NUM_AVERAGES = 50
+NUM_ECHOS = 200
 
-START_TIME = 500e-6
-print(AVERAGES*(REPETITIONS*(RECEIVE_DURATION+500e-6)+20)/60, "min, total trial time")
+print(NUM_AVERAGES*(NUM_ECHOS*(echo_delay_time+500e-6)+20)/60, "min, total trial time")
 print("\n")
-N_CAPTURED = int(RECEIVE_DURATION*RECEIVE_SAMPLE_RATE*REPETITIONS)
+N_CAPTURED = int(echo_sample_time*RECEIVE_SAMPLE_RATE*NUM_ECHOS)
 
+signal_FFT_low_ave = 0
+reference_FFT_low_ave = 0
+signal_FFT_high_ave = 0
+reference_FFT_high_ave = 0
 
-for i in list(range(AVERAGES)):
-	for j in list(range(REPETITIONS)):
+f = np.fft.fftfreq(N_CAPTURED,1/RECEIVE_SAMPLE_RATE) # N points in array
+truncate_num = 3
+for i in list(range(NUM_AVERAGES)):
+
+	for j in list(range(NUM_ECHOS)):
 
 		noise = np.random.normal(0,noise_amplitude,N_RECEIVE)
 		noise_reference = np.random.normal(0,noise_amplitude,N_RECEIVE)
 		resonance = 1*V_max*np.cos(2*np.pi*f_res*t + np.random.normal(0,2*np.pi,1)[0])
 
-		FID_delay_mask = (t > np.random.normal(0,RECEIVE_DURATION/100,1)[0])
-		FID_delay = np.roll(np.where(FID_delay_mask,FID,0),-(np.size(FID_delay_mask)-np.sum(FID_delay_mask)))*np.exp(-RECEIVE_DURATION/T2)
+		FID_delay_mask = (t > np.random.normal(0,echo_sample_time/10,1)[0])
+		FID_delay = np.roll(np.where(FID_delay_mask,FID,0),-(np.size(FID_delay_mask)-np.sum(FID_delay_mask)))
 		
-		signal = FID_delay*np.exp(-RECEIVE_DURATION/T2) + noise + resonance
-		reference =  noise_reference + resonance
+		signal = FID_delay*np.exp(-j*echo_delay_time/T2) + noise
+		reference =  FID_delay*np.exp(-(j+NUM_ECHOS)*echo_delay_time/T2) + noise_reference
 
-		signal_trimmed = signal[t <= RECEIVE_DURATION]
-		reference_trimmed = reference[t <= RECEIVE_DURATION]
+		signal_trimmed = signal[t <= echo_sample_time]
+		reference_trimmed = reference[t <= echo_sample_time]
 
 		if (j == 0):
 			signal_cat = signal_trimmed
@@ -555,37 +577,41 @@ for i in list(range(AVERAGES)):
 			signal_cat = np.concatenate([signal_cat,signal_trimmed])
 			reference_cat = np.concatenate([reference_cat,reference_trimmed])
 
-	if (i == 0):
-		signal_ave = signal_cat
-		reference_ave = reference_cat
-	else:
-		signal_ave += signal_cat
-		reference_ave += reference_cat
+	signal_cat_low = truncate_low(signal_cat*gain,truncate_num)
+	reference_cat_low = truncate_low(reference_cat*gain,truncate_num)
 
+	signal_cat_high = truncate_high(signal_cat*gain,truncate_num)
+	reference_cat_high = truncate_high(reference_cat*gain,truncate_num)
 
-f = np.fft.fftfreq(N_CAPTURED,1/RECEIVE_SAMPLE_RATE) # N points in array
+	signal_FFT_low = 2/(N_CAPTURED)*abs(np.fft.fft(signal_cat_low))
+	reference_FFT_low = 2/(N_CAPTURED)*abs(np.fft.fft(reference_cat_low))
 
-signal_amp = signal_ave*gain/AVERAGES
-reference_amp = reference_ave*gain/AVERAGES
+	signal_FFT_high = 2/(N_CAPTURED)*abs(np.fft.fft(signal_cat_high))
+	reference_FFT_high = 2/(N_CAPTURED)*abs(np.fft.fft(reference_cat_high))
 
-amplitude_FFT = 2/(N_CAPTURED)*abs(np.fft.fft(signal_amp))
-reference_FFT = 2/(N_CAPTURED)*abs(np.fft.fft(reference_amp))
+	signal_FFT_low_ave = signal_FFT_low_ave + signal_FFT_low
+	reference_FFT_low_ave = reference_FFT_low_ave + reference_FFT_low
 
+	signal_FFT_high_ave = signal_FFT_high_ave + signal_FFT_high
+	reference_FFT_high_ave = reference_FFT_high_ave + reference_FFT_high
 
-amplitude_dBV = 20*np.log10(amplitude_FFT/1)
-reference_dBV = 20*np.log10(reference_FFT/1)
+signal_FFT_ave = (signal_FFT_low_ave)/NUM_AVERAGES
+reference_FFT_ave = (reference_FFT_low_ave)/NUM_AVERAGES
 
-min_x = 50
-max_x = 60
+signal_dBV_ave = 20*np.log10(signal_FFT_ave/1)
+reference_dBV_ave = 20*np.log10(reference_FFT_ave/1)
 
-f_trimmed = f[(f/1e3 > min_x) & (f/1e3 < max_x)]
-amplitude_dBV = amplitude_dBV[(f/1e3 > min_x) & (f/1e3 < max_x)]
-reference_dBV = reference_dBV[(f/1e3 > min_x) & (f/1e3 < max_x)]
+min_f = 50e3
+max_f = 70e3
 
-signal_peak = np.max(amplitude_dBV)
-noise_ave = np.sum(reference_dBV)/np.size(f_trimmed)
+f_trimmed = f[(f > min_f) & (f < max_f)]
+signal_dBV_ave = signal_dBV_ave[(f > min_f) & (f < max_f)]
+reference_dBV_ave = reference_dBV_ave[(f > min_f) & (f < max_f)]
+
+signal_peak = np.max(signal_dBV_ave)
+noise_ave = np.sum(reference_dBV_ave)/np.size(f_trimmed)
 print(signal_peak, "dB, peak signal")
-print((f_trimmed[amplitude_dBV >= signal_peak])/1e3, "Hz, max frequency")
+print((f_trimmed[signal_dBV_ave >= signal_peak])/1e3, "Hz, max frequency")
 print(noise_ave, "dB, ave noise")
 print(signal_peak-noise_ave, "dB, signal-noise difference")
 print("\n")
@@ -668,15 +694,15 @@ step_y1 = 25
 step_x = 2.5
 
 
-ax.set_xlim(min_x-step_x/4, max_x+step_x/4)
+ax.set_xlim(min_f/1e3-step_x/4, max_f/1e3+step_x/4)
 
-ax.set_ylim(-162.5-step_y1/4, -75+step_y1/4)
+# ax.set_ylim(-162.5-step_y1/4, -75+step_y1/4)
 
 ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(step_x))
 ax.xaxis.set_minor_locator(mpl.ticker.MultipleLocator(step_x/2))
 
-ax.yaxis.set_major_locator(mpl.ticker.MultipleLocator(step_y1))
-ax.yaxis.set_minor_locator(mpl.ticker.MultipleLocator(step_y1/2))
+# ax.yaxis.set_major_locator(mpl.ticker.MultipleLocator(step_y1))
+# ax.yaxis.set_minor_locator(mpl.ticker.MultipleLocator(step_y1/2))
 
 
 ax.set_xlabel('$f \\quad (\\rm{kHz})$', labelpad=1)
@@ -684,12 +710,12 @@ ax.set_ylabel('$\\rm{Amplitude} \\quad (\\rm{dBV})$', labelpad=4)
 
 mpl.rcParams['axes.unicode_minus'] = False # uses dash instead of minus for axis numbers
 
-ax.plot(f_trimmed/1e3, amplitude_dBV, linewidth=1, color='r', linestyle='solid',markersize='2', label='FID')
-ax.plot(f_trimmed/1e3, reference_dBV, linewidth=1, color='k', linestyle='solid',markersize='2', label='FID')
+ax.plot(f_trimmed/1e3, signal_dBV_ave, linewidth=1, color='r', linestyle='solid',markersize='2', label='FID')
+ax.plot(f_trimmed/1e3, reference_dBV_ave, linewidth=1, color='k', linestyle='solid',markersize='2', label='Reference')
 
 handles,labels = ax.get_legend_handles_labels()
-handles = [handles[1], handles[0]]
-labels = [labels[1], labels[0]]
+# handles = [handles[1], handles[0]]
+# labels = [labels[1], labels[0]]
 ax.legend(handles,labels, frameon=False, bbox_to_anchor = [1, 0.02], loc='lower right', fontsize=8)
 
 ax.annotate(

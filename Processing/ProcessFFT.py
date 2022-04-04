@@ -15,7 +15,7 @@ NUM_FREQ_ARRAY_ELEMENTS = 1
 NUM_DURATION_ARRAY_ELEMENTS = 1
 # Note that setting the averages to greater than 1 removes the peaks from the
 # first trial (and only the first trial). Not sure why.
-NUM_AVERAGES = 10
+NUM_AVERAGES = 1
 # NUM_ECHOS = 80
 
 for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
@@ -68,15 +68,15 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		max_f = 60e3
 
 		f_trimmed = f[(f > min_f) & (f < max_f)]
-		signal_dBV = signal_dBV[(f > min_f) & (f < max_f)]
-		reference_dBV = reference_dBV[(f > min_f) & (f < max_f)]
+		signal_dBV_ave = signal_dBV_ave[(f > min_f) & (f < max_f)]
+		reference_dBV_ave = reference_dBV_ave[(f> min_f) & (f < max_f)]
 
-		signal_peak = np.max(signal_dBV)
-		noise_ave = np.sum(signal_dBV)/np.size(f_trimmed)
-		print(noise_ave)
-		print(signal_peak)
-		print((f_trimmed[signal_dBV >= signal_peak])/1e3)
-		print(signal_peak-noise_ave)
+		signal_peak = np.max(signal_dBV_ave)
+		noise_ave = np.sum(reference_dBV_ave)/np.size(f_trimmed)
+		print(signal_peak, "dB, peak signal")
+		print((f_trimmed[signal_dBV_ave >= signal_peak])/1e3, "Hz, max frequency")
+		print(noise_ave, "dB, ave noise")
+		print(signal_peak-noise_ave, "dB, signal-noise difference")
 		print("\n")
 
 		plt.close('all')
@@ -123,8 +123,8 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 		mpl.rcParams['axes.unicode_minus'] = False # uses dash instead of minus for axis numbers
 
 
-		ax.plot(f_trimmed/1e3, signal_dBV, linewidth=0.5, color='r', linestyle='solid',markersize='2', label='Input')
-		ax.plot(f_trimmed/1e3, reference_dBV, linewidth=0.5, color='k', linestyle='solid',markersize='2', label='Input')
+		ax.plot(f_trimmed/1e3, signal_dBV_ave, linewidth=0.5, color='r', linestyle='solid',markersize='2', label='Input')
+		ax.plot(f_trimmed/1e3, reference_dBV_ave, linewidth=0.5, color='k', linestyle='solid',markersize='2', label='Input')
 
 		plt.savefig(path + '/FFT_' + str(i) + '_' + str(j)  + '.pdf')
 
