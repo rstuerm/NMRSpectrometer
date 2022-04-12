@@ -7,7 +7,7 @@ import os
 
 path = os.path.dirname(os.path.abspath(__file__))
 
-CAPTURE_DURATION = 1
+CAPTURE_DURATION = 0.98
 START_TIME = 0
 REFERENCE_START_TIME = 1
 
@@ -15,7 +15,7 @@ NUM_FREQ_ARRAY_ELEMENTS = 1
 NUM_DURATION_ARRAY_ELEMENTS = 1
 # Note that setting the averages to greater than 1 removes the peaks from the
 # first trial (and only the first trial). Not sure why.
-NUM_AVERAGES = 10
+NUM_AVERAGES = 3
 # NUM_ECHOS = 80
 
 for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
@@ -24,6 +24,8 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 
 		signal_dBV_ave = 0
 		reference_dBV_ave = 0
+
+		print(str(i) + " " + str(j) + "\n")
 
 		for k in list(range(NUM_AVERAGES)):
 
