@@ -13,10 +13,7 @@ REFERENCE_START_TIME = 1
 
 NUM_FREQ_ARRAY_ELEMENTS = 1
 NUM_DURATION_ARRAY_ELEMENTS = 1
-# Note that setting the averages to greater than 1 removes the peaks from the
-# first trial (and only the first trial). Not sure why.
 NUM_AVERAGES = 3
-# NUM_ECHOS = 80
 
 for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 
@@ -55,16 +52,6 @@ for i in list(range(NUM_FREQ_ARRAY_ELEMENTS)):
 
 		signal_dBV_ave = signal_dBV_ave/NUM_AVERAGES
 		reference_dBV_ave = reference_dBV_ave/NUM_AVERAGES
-
-		# Empirical fit to see what range to remove. (Note can set replacement
-		# value as non zero (~0.3) to help align portion being removed with
-		# spikes. Ideally this could be based on the relay delay time, the pulse
-		# duration, and the echo sample spacing.
-		# for l in list(range(NUM_ECHOS + 1)):
-		# 	signal_ave[(t > 33.2e-3*l) & (t < 33.2e-3*l + 4e-3)] = np.average(signal_ave)
-		
-		# alternative method to remove noise by removing large value
-		# signal_ave[np.abs(signal_ave - np.average(signal_ave)) > 2*np.average(np.abs(signal_ave))] = np.average(signal_ave)
 
 		min_f = 50e3
 		max_f = 60e3
